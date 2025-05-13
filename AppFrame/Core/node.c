@@ -1,11 +1,15 @@
 #include "node.h"
 
-static Node_Struct _rootNode = {
-	.name = "RootNode",
-	.childListHead = LIST_HEAD_INIT(_rootNode.childListHead),
-	.childNum = 0,
-	.parent = APP_NULL,
-};
+//static Node_Struct _rootNode = {
+//	.name = "RootNode",
+//	.childListHead = LIST_HEAD_INIT(_rootNode.childListHead),
+//	.childNum = 0,
+//	.parent = APP_NULL,
+//};
+
+#define __ZERO_SAFE_DEC(n) do{\ 
+	if (n != 0) {(n)--;}\
+}while(0);
 
 
 static void _init_node(Node_Struct* node);
@@ -13,7 +17,8 @@ static void _init_node(Node_Struct* node);
 
 static void _init_node(Node_Struct* node)
 {
-	node->childListHead = LIST_HEAD_INIT(_rootNode.childListHead);
+	node->list = LIST_HEAD_INIT(node->list);
+	node->childNodeList = APP_NULL;
 	node->childNum = 0;
 	node->parent = APP_NULL;
 }
@@ -34,9 +39,10 @@ Node_Struct* Node_create(Node_Struct* parent)
 	if (parent) {
 		status = Node_add_child(parent, new_node);
 		if (status < 0) {goto leave;}
-	}else {
-		Node_add_child(&_rootNode, new_node);
 	}
+	//else {
+	//	Node_add_child(&_rootNode, new_node);
+	//}
 
 leave:
 	if (status<0) {
@@ -46,37 +52,111 @@ leave:
 }
 
 
+void Node_delete(Node_Struct* node)
+{
+	struct Node_Struct* nodePos;
+	struct Node_Struct* childNodeList = node->childNodeList;
+
+	if (!node) {
+		return;
+	}
+
+	Node_moveout(node);
+
+//TODO: 需要遍历删除
+	//list_for_each_entry(nodePos, &(childNodeList->list), list) {
+	//	Node_delete(node);
+	//}
+
+	//APP_SAFE_FREE(node);
+}
+
+
 int Node_add_child(Node_Struct* node, Node_Struct* child)
 {
-	if (child->parent) {
+	if (child->parent || child == APP_NULL) {
 		return -1;
 	}
 
-	list_add_tail(&(child->childListHead), &(node->childListHead));
+	// 没有子节点
+	if (!(node->childNodeList)) {
+		node = child;
+		node->childNum = 1;
+	}else { // 已有就加到末尾
+		list_add_tail(&(child->list), &(node->childNodeList));
+		node->childNum++;
+	}
+	
 	child->parent = node;
 
 	return 0;
 }
 
 
-int Node_remove_child(Node_Struct* node, Node_Struct* child)
-{
-	child->parent = APP_NULL;
-	list_del(child);
-	return 0;
-}
-
-
 int Node_reparent(Node_Struct* node, Node_Struct* new_parent)
 {
-	if (!(node->parent)) {
+	if (!(node->parent) || new_parent == APP_NULL) {
 		return -1;
 	}
-	if (Node_remove_child(node->parent, node) < 0) {
+	if (Node_moveout(node) < 0) {
 		return -1;
 	}
+	
 	node->parent = new_parent;
-	list_add_tail(&(node->childListHead), &(new_parent->childListHead));
+	Node_add_child(node->parent, node);
 
 	return 0;
 }
+
+
+int Node_moveout(Node_Struct* node)
+{
+	if (!node) {
+		return -1;
+	}
+	if (!list_singel(node->list)) {
+		list_del(node->list);
+	}
+	__ZERO_SAFE_DEC(node->parent->childNum);
+	node->parent = APP_NULL;
+	
+	return 0;
+}
+
+
+int Node_count_child_num(Node_Struct* node)
+{
+	struct Node_Struct* nodePos;
+	struct Node_Struct* childNodeList = node->childNodeList;
+	int num = 0;
+
+	if (!node) {
+		return -1;
+	}
+	
+	list_for_each_entry(nodePos, &(childNodeList->list), list){
+		num++;
+	}
+
+	return num;
+}
+
+
+Node_Struct* Node_find_child(Node_Struct* node, Node_Struct* child)
+{
+	struct Node_Struct* nodePos;
+	struct Node_Struct* childNodeList = node->childNodeList;
+
+	if (!node) {
+		return APP_NULL;
+	}
+
+	list_for_each_entry(nodePos, &(childNodeList->list), list) {
+		if (nodePos == child) {
+			return nodePos;
+		}
+	}
+
+	return APP_NULL;
+}
+

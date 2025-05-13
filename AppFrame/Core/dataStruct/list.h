@@ -32,6 +32,9 @@ extern "C" {
 //        const typeof(((type *)0)->member)*__mptr = (ptr);    \
 //    (type *)((char *)__mptr - offsetof(type, member)); })
 
+// ptr: 结构体成员指针
+// type: 结构体类型
+// member: 结构体成员名称
 #define container_of(ptr, type, member) ({          \
         void* __mptr = (ptr);    \
     (type *)((char *)__mptr - offsetof(type, member)); })
@@ -135,6 +138,12 @@ static inline int list_empty(const struct list_head* head)
 {
 	return head->next == head;
 }
+
+static inline int list_singel(const struct list_head* head)
+{
+	return head->next == LIST_POISON1 || head->prev == LIST_POISON2;
+}
+
 /**
  * list_splice - join two lists
  * @list: the new list to add.
