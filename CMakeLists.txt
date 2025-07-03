@@ -13,3 +13,4 @@ project ("AppFrame")
 
 # 包含子项目。
 add_subdirectory ("AppFrame")
+add_subdirectory ("QtTool")
